@@ -1,24 +1,38 @@
-# Base image without redundant platform flag
-FROM 967763122477.dkr.ecr.eu-central-1.amazonaws.com/limechain/geth AS devnet
+FROM 967763122477.dkr.ecr.eu-central-1.amazonaws.com/limechain/geth AS builder
 
+# Install necessary tools
 RUN apk add --no-cache nodejs npm curl jq
 
+# Set working directory
 WORKDIR /app
 
+# Copy Hardhat project files
 COPY hardhat/ ./hardhat/
-
 COPY genesis.json /app/genesis.json
 
+# Install Hardhat dependencies
 WORKDIR /app/hardhat
 RUN npm install
 
-# Create startup script
+# Predeploy contracts during the image build
+RUN mkdir -p /app/data && \
+    geth --datadir /app/data init /app/genesis.json && \
+    geth --dev --http --http.addr=0.0.0.0 --http.api=eth,net,web3,txpool,debug,admin --dev.period 1 --datadir /app/data & \
+    GETH_PID=$! && \
+    echo "Waiting for Geth RPC to be ready..." && \
+    until curl --silent --fail http://localhost:8545 > /dev/null; do sleep 1; done && \
+    echo "Geth RPC is available" && \
+    yes "y" | npx hardhat ignition deploy ignition/modules/Lock.js --network localhost && \
+    touch /app/data/deployed.lock && \
+    echo "Contracts deployed during image build." && \
+    kill $GETH_PID && wait $GETH_PID || true
+
+# Copy startup script
 COPY scripts/start-with-deploy.sh /usr/local/bin/start-with-deploy.sh
 RUN chmod +x /usr/local/bin/start-with-deploy.sh
 
-# Set entry point
+# Set the entry point to the startup script
 ENTRYPOINT ["/usr/local/bin/start-with-deploy.sh"]
 
 # Expose necessary ports
 EXPOSE 8545 8546 8547 30303
-
