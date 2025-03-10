@@ -1,0 +1,14 @@
+services:
+  nft_media_handler:
+    image: blockscout/blockscout:latest
+    pull_policy: always
+    restart: always
+    stop_grace_period: 5m
+    container_name: 'nft_media_handler'
+    command: sh -c "bin/blockscout start"
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file:
+      -  ../envs/common-nft-media-handler.env
+    volumes:
+      - ./data/logs/:/app/logs/

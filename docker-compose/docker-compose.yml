@@ -1,0 +1,125 @@
+services:
+  geth:
+    extends:
+      file: ./services/geth.yml
+      service: geth
+    networks:
+      - geth-network
+
+  blockscout-db-init:
+    extends:
+      file: ./blockscout/services/db.yml
+      service: db-init
+    networks:
+      - geth-network
+
+  blockscout-db:
+    depends_on:
+      blockscout-db-init:
+        condition: service_completed_successfully
+    extends:
+      file: ./blockscout/services/db.yml
+      service: db
+    networks:
+      - geth-network
+
+  blockscout-backend:
+    depends_on:
+      - blockscout-db
+    extends:
+      file: ./blockscout/services/backend.yml
+      service: backend
+    environment:
+      ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:8545/
+      ETHEREUM_JSONRPC_TRACE_URL: http://host.docker.internal:8545/
+      ETHEREUM_JSONRPC_WS_URL: ws://host.docker.internal:8545/
+      CHAIN_ID: '1337'
+    networks:
+      - geth-network
+
+  blockscout-frontend:
+    depends_on:
+      - blockscout-backend
+    extends:
+      file: ./blockscout/services/frontend.yml
+      service: frontend
+    networks:
+      - geth-network
+
+  blockscout-nft_media_handler:
+    depends_on:
+      - blockscout-backend
+    extends:
+      file: ./blockscout/services/nft_media_handler.yml
+      service: nft_media_handler
+    networks:
+      - geth-network
+
+  blockscout-visualizer:
+    extends:
+      file: ./blockscout/services/visualizer.yml
+      service: visualizer
+    networks:
+      - geth-network
+
+  blockscout-sig-provider:
+    extends:
+      file: ./blockscout/services/sig-provider.yml
+      service: sig-provider
+    networks:
+      - geth-network
+  blockscout-stats-db-init:
+    extends:
+      file: ./blockscout/services/stats.yml
+      service: stats-db-init
+    networks:
+      - geth-network
+
+  blockscout-stats-db:
+    depends_on:
+      blockscout-stats-db-init:
+        condition: service_completed_successfully
+    extends:
+      file: ./blockscout/services/stats.yml
+      service: stats-db
+    networks:
+      - geth-network
+
+  blockscout-stats:
+    depends_on:
+      - blockscout-stats-db
+      - blockscout-backend
+    extends:
+      file: ./blockscout/services/stats.yml
+      service: stats
+    networks:
+      - geth-network
+
+  blockscout-user-ops-indexer:
+    depends_on:
+      - blockscout-db
+      - blockscout-backend
+    extends:
+      file: ./blockscout/services/user-ops-indexer.yml
+      service: user-ops-indexer
+    networks:
+      - geth-network
+
+  blockscout-proxy:
+    depends_on:
+      - blockscout-backend
+      - blockscout-frontend
+      - blockscout-stats
+    extends:
+      file: ./blockscout/services/nginx.yml
+      service: proxy
+    networks:
+      - geth-network
+
+networks:
+  geth-network:
+    driver: bridge
+
+volumes:
+  geth-data:
+    driver: local
