@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "npx run hardhat test",
+    "test": "npx hardhat test --network localhost",
     "deploy": "hardhat ignition deploy ./ignition/modules/Lock.js --network localhost"
   },
   "keywords": [],
