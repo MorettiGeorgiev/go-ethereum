@@ -54,4 +54,8 @@ jobs:
             
         - name: Run Hardhat tests against devnet
           working-directory: ./hardhat
-          run: npx hardhat test --network http://localhost:8545
+          run: npx hardhat test --network localhost
+          
+        - name: Cleanup
+          if: always()
+          run: docker stop devnet-test || true
