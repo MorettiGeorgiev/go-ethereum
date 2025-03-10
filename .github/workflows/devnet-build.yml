@@ -54,4 +54,4 @@ jobs:
             
         - name: Run Hardhat tests against devnet
           working-directory: ./hardhat
-          run: npx hardhat test --network localhost
+          run: npm run test
