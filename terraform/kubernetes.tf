@@ -9,14 +9,23 @@ provider "kubernetes" {
   }
 }
 
-# Add a dependency on the EKS module to ensure the cluster is fully ready
+# Allow more time for EKS cluster to fully initialize
 resource "time_sleep" "wait_for_kubernetes" {
   depends_on = [module.eks]
-  create_duration = "30s"
+  create_duration = "60s"
+}
+
+# Create a null resource to test Kubernetes connectivity
+resource "null_resource" "kubernetes_connectivity_test" {
+  depends_on = [time_sleep.wait_for_kubernetes]
+
+  provisioner "local-exec" {
+    command = "kubectl get nodes"
+  }
 }
 
 resource "kubernetes_deployment" "geth_devnet" {
-  depends_on = [time_sleep.wait_for_kubernetes]
+  depends_on = [time_sleep.wait_for_kubernetes, null_resource.kubernetes_connectivity_test]
   metadata {
     name = "geth-devnet"
     labels = {
