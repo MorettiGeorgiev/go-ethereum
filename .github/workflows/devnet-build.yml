@@ -55,3 +55,27 @@ jobs:
         - name: Run Hardhat tests against devnet
           working-directory: ./hardhat
           run: npm run test
+          
+        - name: Setup Terraform
+          uses: hashicorp/setup-terraform@v3
+          
+        - name: Terraform Init
+          working-directory: ./terraform
+          run: terraform init
+          
+        - name: Terraform Plan
+          working-directory: ./terraform
+          run: terraform plan -var="docker_image=${{ env.DOCKER_IMAGE }}" -out=tfplan
+          
+        - name: Terraform Apply
+          working-directory: ./terraform
+          run: terraform apply -auto-approve tfplan
+          
+        - name: Get Kubernetes Config
+          run: |
+            aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $(terraform -chdir=./terraform output -raw cluster_name)
+            
+        - name: Output Service Endpoint
+          working-directory: ./terraform
+          run: |
+            echo "Devnet service endpoint: $(terraform output -raw service_endpoint)"
