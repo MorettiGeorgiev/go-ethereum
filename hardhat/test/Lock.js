@@ -36,6 +36,14 @@ describe("Lock", function () {
     return { lock, unlockTime, lockedAmount, owner, otherAccount };
   }
 
+  function getSecondsFromNow(seconds) {
+    return Math.floor(Date.now() / 1000) + seconds;
+  }
+
+  async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   describe("Deployment", function () {
     it("Should set the right unlockTime", async function () {
       const { lock, unlockTime } = await deployOneYearLockFixture();
@@ -79,10 +87,10 @@ describe("Lock", function () {
       });
 
       it("Should revert with the right error if called from another account", async function () {
-        const twoSecsFromNow = Math.floor(Date.now() / 1000) + 2;
-        const { lock, otherAccount } = await deployOneYearLockFixture(twoSecsFromNow)
+        const twoSecondsFromNow = getSecondsFromNow(2)
+        const { lock, otherAccount } = await deployOneYearLockFixture(twoSecondsFromNow)
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sleep(2000);
 
         // We use lock.connect() to send a transaction from another account
         await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
@@ -91,10 +99,10 @@ describe("Lock", function () {
       });
 
       it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-        const twoSecsFromNow = Math.floor(Date.now() / 1000) + 2;
-        const { lock } = await deployOneYearLockFixture(twoSecsFromNow)
+        const twoSecondsFromNow = getSecondsFromNow(2)
+        const { lock } = await deployOneYearLockFixture(twoSecondsFromNow)
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sleep(2000);
 
         // Transactions are sent using the first signer by default
         const tx = await lock.withdraw();
@@ -106,10 +114,10 @@ describe("Lock", function () {
 
     describe("Events", function () {
       it("Should emit an event on withdrawals", async function () {
-        const twoSecsFromNow = Math.floor(Date.now() / 1000) + 2;
-        const { lock, lockedAmount } = await deployOneYearLockFixture(twoSecsFromNow)
+        const twoSecondsFromNow = getSecondsFromNow(2)
+        const { lock, lockedAmount } = await deployOneYearLockFixture(twoSecondsFromNow)
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sleep(2000);
 
         const tx = await lock.withdraw();
         const receipt = await tx.wait();
@@ -118,17 +126,17 @@ describe("Lock", function () {
         
         await expect(tx)
           .to.emit(lock, "Withdrawal")
-          .withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
+          .withArgs(lockedAmount, anyValue);
 
       });
     });
 
     describe("Transfers", function () {
       it("Should transfer the funds to the owner", async function () {
-        const twoSecsFromNow = Math.floor(Date.now() / 1000) + 2;
-        const { lock, lockedAmount, owner } = await deployOneYearLockFixture(twoSecsFromNow)
+        const twoSecondsFromNow = getSecondsFromNow(2)
+        const { lock, lockedAmount, owner } = await deployOneYearLockFixture(twoSecondsFromNow)
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await sleep(2000);
 
         const tx = await lock.withdraw();
         await tx.wait();

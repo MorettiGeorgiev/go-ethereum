@@ -4,9 +4,9 @@ provider "aws" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  version         = "~> 19.0"
+  version         = "~> 20.34.0"
   cluster_name    = var.cluster_name
-  cluster_version = "1.28"
+  cluster_version = "1.32"
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -17,9 +17,11 @@ module "eks" {
       max_size     = 3
       desired_size = 2
 
-      instance_types = ["t3.medium"]
+      instance_types = ["t3.micro"]
     }
   }
+
+  cluster_endpoint_public_access = true
 
   tags = {
     Environment = "devnet"
@@ -29,7 +31,7 @@ module "eks" {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 4.0"
+  version = "~> 5.19.0"
 
   name = "${var.cluster_name}-vpc"
   cidr = "10.0.0.0/16"
@@ -44,10 +46,12 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = 1
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   }
 }
 

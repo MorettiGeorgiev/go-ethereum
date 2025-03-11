@@ -4,12 +4,19 @@ provider "kubernetes" {
   
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region]
     command     = "aws"
   }
 }
 
+# Add a dependency on the EKS module to ensure the cluster is fully ready
+resource "time_sleep" "wait_for_kubernetes" {
+  depends_on = [module.eks]
+  create_duration = "30s"
+}
+
 resource "kubernetes_deployment" "geth_devnet" {
+  depends_on = [time_sleep.wait_for_kubernetes]
   metadata {
     name = "geth-devnet"
     labels = {
@@ -68,6 +75,7 @@ resource "kubernetes_deployment" "geth_devnet" {
 }
 
 resource "kubernetes_service" "geth_devnet" {
+  depends_on = [kubernetes_deployment.geth_devnet]
   metadata {
     name = "geth-devnet-service"
   }
@@ -104,4 +112,5 @@ resource "kubernetes_service" "geth_devnet" {
 output "service_endpoint" {
   value = kubernetes_service.geth_devnet.status[0].load_balancer[0].ingress[0].hostname
   description = "Endpoint to access the Geth devnet"
+  depends_on = [kubernetes_service.geth_devnet]
 }
