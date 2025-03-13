@@ -1,58 +1,56 @@
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
+  token                  = data.aws_eks_cluster_auth.cluster.token
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-  
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name, "--region", var.region]
-    command     = "aws"
-  }
+
 }
 
-# Allow more time for EKS cluster to fully initialize
-resource "time_sleep" "wait_for_kubernetes" {
+data "aws_eks_cluster_auth" "cluster" {
+  name       = local.cluster_name
   depends_on = [module.eks]
-  create_duration = "60s"
 }
 
-# Create a null resource to test Kubernetes connectivity
-resource "null_resource" "kubernetes_connectivity_test" {
-  depends_on = [time_sleep.wait_for_kubernetes]
-
-  provisioner "local-exec" {
-    command = "kubectl get nodes"
+resource "kubernetes_service_account" "app_sa" {
+  metadata {
+    name      = "${var.app_name}-sa"
+    namespace = var.namespace
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.eks_pod_role.arn
+    }
   }
 }
 
-resource "kubernetes_deployment" "geth_devnet" {
-  depends_on = [time_sleep.wait_for_kubernetes, null_resource.kubernetes_connectivity_test]
+resource "kubernetes_deployment" "app" {
   metadata {
-    name = "geth-devnet"
+    name      = var.app_name
+    namespace = var.namespace
     labels = {
-      app = "geth-devnet"
+      app = var.app_name
     }
   }
 
   spec {
-    replicas = 1
+    replicas = var.replicas
 
     selector {
       match_labels = {
-        app = "geth-devnet"
+        app = var.app_name
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "geth-devnet"
+          app = var.app_name
         }
       }
 
       spec {
+        service_account_name = kubernetes_service_account.app_sa.metadata[0].name
+
         container {
-          image = var.docker_image
-          name  = "geth-devnet"
+          name  = var.app_name
+          image = var.image_repo
 
           port {
             container_port = 8545
@@ -66,60 +64,54 @@ resource "kubernetes_deployment" "geth_devnet" {
           port {
             container_port = 30303
           }
-
-          resources {
-            limits = {
-              cpu    = "1"
-              memory = "2Gi"
-            }
-            requests = {
-              cpu    = "500m"
-              memory = "1Gi"
-            }
-          }
         }
       }
     }
   }
 }
 
-resource "kubernetes_service" "geth_devnet" {
-  depends_on = [kubernetes_deployment.geth_devnet]
+resource "kubernetes_service" "app_service" {
   metadata {
-    name = "geth-devnet-service"
+    name      = "${var.app_name}-svc"
+    namespace = var.namespace
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+    }
   }
+
   spec {
     selector = {
-      app = "geth-devnet"
+      app = var.app_name
     }
-    
+
+    type = "LoadBalancer"
+
     port {
       name        = "http-rpc"
       port        = 8545
       target_port = 8545
+      protocol    = "TCP"
     }
     port {
       name        = "ws-rpc"
       port        = 8546
       target_port = 8546
+      protocol    = "TCP"
+
     }
     port {
       name        = "graphql"
       port        = 8547
       target_port = 8547
+      protocol    = "TCP"
+
     }
     port {
       name        = "p2p"
       port        = 30303
       target_port = 30303
+      protocol    = "TCP"
+
     }
-
-    type = "LoadBalancer"
   }
-}
-
-output "service_endpoint" {
-  value = kubernetes_service.geth_devnet.status[0].load_balancer[0].ingress[0].hostname
-  description = "Endpoint to access the Geth devnet"
-  depends_on = [kubernetes_service.geth_devnet]
 }
