@@ -2,7 +2,6 @@ provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   token                  = data.aws_eks_cluster_auth.cluster.token
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
 }
 
 data "aws_eks_cluster_auth" "cluster" {
@@ -90,12 +89,14 @@ resource "kubernetes_service" "app_service" {
       name        = "http-rpc"
       port        = 8545
       target_port = 8545
+      node_port   = 30000
       protocol    = "TCP"
     }
     port {
       name        = "ws-rpc"
       port        = 8546
       target_port = 8546
+      node_port   = 30001
       protocol    = "TCP"
 
     }
@@ -103,6 +104,7 @@ resource "kubernetes_service" "app_service" {
       name        = "graphql"
       port        = 8547
       target_port = 8547
+      node_port   = 30002
       protocol    = "TCP"
 
     }
@@ -110,8 +112,8 @@ resource "kubernetes_service" "app_service" {
       name        = "p2p"
       port        = 30303
       target_port = 30303
+      node_port   = 30003
       protocol    = "TCP"
-
     }
   }
 }
