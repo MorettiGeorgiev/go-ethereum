@@ -9,7 +9,7 @@ env:
     REPO_URL: ${{ vars.ECR_REPO_URL }}
     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    DOCKER_IMAGE: public.ecr.aws/k2w1w1n8/lime-public/devnet:latest
+    DOCKER_IMAGE: ${{ vars.ECR_REPO_URL }}/limechain/devnet:latest
 
 jobs:
     build-devnet:
